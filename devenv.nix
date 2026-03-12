@@ -74,6 +74,10 @@ in
     enable = true;
     pull = [
       "bingamon-lab-tf-modules"
+      "pre-commit-hooks"
+      "devenv.cachix.org"
+      "cache.nixos.org"
+      "nix-community.cachix.org"
     ];
     push = "bingamon-lab-tf-modules";
   };
@@ -273,9 +277,33 @@ in
         fi
         echo "Checking Terraform Module for ''${MODULE_HOME}"
         tofu-format "''${MODULE_HOME}" || exit 1
+        tofu-clean "''${MODULE_HOME}" || exit 1
         tofu-init "''${MODULE_HOME}" || exit 1
         tofu-validate "''${MODULE_HOME}" || exit 1
         tofu-docs "''${MODULE_HOME}" || exit 1
+      '';
+    };
+
+    tofu-clean = {
+      package = pkgs.bash;
+      description = "Clean the OpenTofu providers for a given directory";
+      exec = ''
+        DIR="''${1:-}"
+        if [ "''${DIR:-EMPTY}" == "EMPTY" ];
+        then
+          echo "Usage: $0 <directory>"
+          exit 1
+        fi
+        if [ ! -d "''${DIR}" ];
+        then
+          echo "Directory ''${DIR} does not exist"
+          exit 1
+        fi
+        echo "Cleaning OpenTofu state in ''${DIR}"
+        pushd "''${DIR}"
+        # Remove any stale .terraform dir so there is no cached backend state.
+        rm -rf "''${DIR}/.terraform"
+        popd
       '';
     };
 
