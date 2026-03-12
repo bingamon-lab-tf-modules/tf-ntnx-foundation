@@ -146,6 +146,9 @@ in
       gptcommit.enable = true;
       markdownlint = {
         enable = true;
+        excludes = [
+          "module/README.md"
+        ];
         settings = {
           configuration = {
             MD013 = {
@@ -164,7 +167,7 @@ in
         };
       };
       mixed-line-endings.enable = true;
-      nixfmt-rfc-style.enable = true;
+      nixfmt.enable = true;
       pre-commit-hook-ensure-sops.enable = true;
       prettier = {
         enable = true;

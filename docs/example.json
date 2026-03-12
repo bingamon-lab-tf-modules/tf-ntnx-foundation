@@ -1,0 +1,78 @@
+{
+    "config": {
+        "bond_mode": "dynamic",
+        "bond_lacp_rate": "fast",
+        "rdma_passthrough": false,
+        "ui_platform": "other",
+        "current_cvm_vlan_tag": "0",
+        "hypervisor_netmask": "255.255.255.0",
+        "cvm_netmask": "255.255.255.0",
+        "hypervisor_gateway": "10.10.200.254",
+        "cvm_gateway": "10.10.200.254",
+        "ipmi_netmask": "255.255.255.0",
+        "ipmi_gateway": "10.10.100.254",
+        "ui_skip_network_check": false,
+        "clusters": [
+            {
+                "redundancy_factor": 2,
+                "timezone": "Australia/Sydney",
+                "cluster_members": [
+                    "10.10.200.11",
+                    "10.10.200.12",
+                    "10.10.200.13"
+                ],
+                "enable_ns": false,
+                "cluster_name": "NTNX-CLUSTER-1",
+                "cluster_external_ip": "10.10.200.100",
+                "cvm_ntp_servers": "162.159.200.1",
+                "cvm_dns_servers": "10.10.200.254"
+            }
+        ],
+        "blocks": [
+            {
+                "block_id": null,
+                "ui_block_id": "",
+                "nodes": [
+                    {
+                        "node_position": "A",
+                        "ipmi_ip": "10.10.100.1",
+                        "hypervisor_ip": "10.10.200.1",
+                        "cvm_ip": "10.10.200.11",
+                        "hypervisor_hostname": "NTNX-AHV-1",
+                        "ipmi_user": "admin",
+                        "ipmi_password": "letmein",
+                        "cvm_gb_ram": 12
+                    },
+                    {
+                        "node_position": "B",
+                        "ipmi_ip": "10.10.100.2",
+                        "hypervisor_hostname": "NTNX-AHV-2",
+                        "hypervisor_ip": "10.10.200.2",
+                        "cvm_ip": "10.10.200.12",
+                        "ipmi_user": "asdmin",
+                        "ipmi_password": "letmein",
+                        "cvm_gb_ram": 12
+                    },
+                    {
+                        "node_position": "C",
+                        "ipmi_ip": "10.10.100.3",
+                        "hypervisor_hostname": "NTNX-AHV-3",
+                        "hypervisor_ip": "10.10.200.3",
+                        "cvm_ip": "10.10.200.13",
+                        "ipmi_user": "admin",
+                        "ipmi_password": "letmein",
+                        "cvm_gb_ram": 12
+                    }
+                ]
+            }
+        ],
+        "eos_metadata": {
+            "account_name": [
+                "Royal Australian Navy",
+                "Department of Defence - Cyber Defence Systems"
+            ],
+            "config_id": "69a0e04777930e069d8cf636",
+            "email": "matthew.duncan5@defence.gov.au"
+        }
+    }
+}

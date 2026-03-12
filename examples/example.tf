@@ -2,10 +2,22 @@ terraform {
   required_version = ">= 1.9.0"
 }
 
-module "MODULE_NAME" {
-  source  = "github.com/bingamon-lab-tf-modules/MODULE_NAME/MODULE_SYSTEM"
-  version = "1.0.0"
+locals {
+  # Load the JSON exported from install.nutanix.com (Foundation preconfiguration app)
+  config = jsondecode(file("config.json")).config
+}
 
-  # TFVars go here
+module "foundation" {
+  source = "../module"
 
+  config      = local.config
+  nos_package = "" # Auto-discover from Foundation VM
+}
+
+output "session_id" {
+  value = module.foundation.session_id
+}
+
+output "cluster_urls" {
+  value = module.foundation.cluster_urls
 }
