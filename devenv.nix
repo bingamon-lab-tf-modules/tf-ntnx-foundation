@@ -33,6 +33,7 @@ let
     # Secrets
     age
     ssh-to-age
+    sops
     ssh-to-pgp
 
     # Terraform/OpenTofu
