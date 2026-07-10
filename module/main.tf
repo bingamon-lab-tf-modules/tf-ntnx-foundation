@@ -1,9 +1,16 @@
 resource "nutanix_foundation_image_nodes" "imaging" {
+  depends_on = [
+    nutanix_foundation_image.nos,
+    nutanix_foundation_image.ahv,
+    nutanix_foundation_image.esx,
+    nutanix_foundation_image.hyperv,
+  ]
+
   timeouts {
-    create = "120m"
+    create = "${var.timeout_minutes}m"
   }
 
-  # NOS package: use override if provided, otherwise auto-discover
+  # NOS package: YAML value wins, otherwise auto-discover from Foundation VM
   nos_package = local.nos_package
 
   # Common network settings from JSON config
@@ -13,6 +20,43 @@ resource "nutanix_foundation_image_nodes" "imaging" {
   hypervisor_netmask = var.config.hypervisor_netmask
   ipmi_gateway       = try(var.config.ipmi_gateway, null)
   ipmi_netmask       = try(var.config.ipmi_netmask, null)
+
+  # Optional wizard fields
+  skip_hypervisor     = var.skip_hypervisor ? true : null
+  hypervisor_password = var.hypervisor_password
+  layout_egg_uuid     = var.layout_egg_uuid
+
+  # Optional: AOS installer arguments and hypervisor DNS
+  svm_rescue_args       = var.svm_rescue_args
+  hypervisor_nameserver = var.hypervisor_nameserver
+
+  # Hypervisor ISO — only emitted when YAML specifies an ISO filename
+  dynamic "hypervisor_iso" {
+    for_each = local.needs_hypervisor_iso ? [1] : []
+    content {
+      dynamic "kvm" {
+        for_each = local.ahv_iso_filename != null ? [1] : []
+        content {
+          filename = local.ahv_iso_filename
+          checksum = local.ahv_iso_checksum
+        }
+      }
+      dynamic "esx" {
+        for_each = local.esx_iso_filename != null ? [1] : []
+        content {
+          filename = local.esx_iso_filename
+          checksum = local.esx_iso_checksum
+        }
+      }
+      dynamic "hyperv" {
+        for_each = local.hyperv_iso_filename != null ? [1] : []
+        content {
+          filename = local.hyperv_iso_filename
+          checksum = local.hyperv_iso_checksum
+        }
+      }
+    }
+  }
 
   # Blocks and nodes from JSON config
   dynamic "blocks" {
@@ -34,8 +78,8 @@ resource "nutanix_foundation_image_nodes" "imaging" {
           cvm_gb_ram           = try(nodes.value.cvm_gb_ram, null)
           image_now            = try(nodes.value.image_now, true)
           hypervisor           = try(nodes.value.hypervisor, "kvm")
-          bond_mode            = local.bond_mode
-          bond_lacp_rate       = local.bond_lacp_rate
+          bond_mode            = local.bond_mode != null && local.bond_mode != "" ? local.bond_mode : null
+          bond_lacp_rate       = local.bond_lacp_rate != null && local.bond_lacp_rate != "" ? local.bond_lacp_rate : null
           rdma_passthrough     = try(var.config.rdma_passthrough, null)
           current_cvm_vlan_tag = try(tonumber(var.config.current_cvm_vlan_tag), null)
         }
@@ -68,6 +112,15 @@ resource "nutanix_foundation_image_nodes" "imaging" {
       config_id    = try(eos_metadata.value.config_id, null)
       account_name = try(eos_metadata.value.account_name, null)
       email        = try(eos_metadata.value.email, null)
+    }
+  }
+
+  # Post-imaging tests (only emitted when YAML configures them)
+  dynamic "tests" {
+    for_each = local.needs_tests ? [1] : []
+    content {
+      run_syscheck = var.run_syscheck
+      run_ncc      = var.run_ncc
     }
   }
 }

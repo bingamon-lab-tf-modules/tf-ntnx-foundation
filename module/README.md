@@ -130,7 +130,7 @@ Foundation connectivity:
 
 | Name | Version |
 |------|---------|
-| <a name="provider_nutanix"></a> [nutanix](#provider\_nutanix) | 2.4.0 |
+| <a name="provider_nutanix"></a> [nutanix](#provider\_nutanix) | 2.4.2 |
 
 ## Modules
 
@@ -140,6 +140,10 @@ No modules.
 
 | Name | Type |
 |------|------|
+| [nutanix_foundation_image.ahv](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/foundation_image) | resource |
+| [nutanix_foundation_image.esx](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/foundation_image) | resource |
+| [nutanix_foundation_image.hyperv](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/foundation_image) | resource |
+| [nutanix_foundation_image.nos](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/foundation_image) | resource |
 | [nutanix_foundation_image_nodes.imaging](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/foundation_image_nodes) | resource |
 | [nutanix_foundation_nos_packages.nos](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/data-sources/foundation_nos_packages) | data source |
 
@@ -147,8 +151,28 @@ No modules.
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
+| <a name="input_ahv_iso_checksum"></a> [ahv\_iso\_checksum](#input\_ahv\_iso\_checksum) | MD5 checksum of the AHV ISO. Optional. | `string` | `null` | no |
+| <a name="input_ahv_iso_filename"></a> [ahv\_iso\_filename](#input\_ahv\_iso\_filename) | AHV (kvm) ISO filename on the Foundation VM. | `string` | `""` | no |
+| <a name="input_ahv_iso_local_path"></a> [ahv\_iso\_local\_path](#input\_ahv\_iso\_local\_path) | Local path to AHV ISO. If set, Terraform uploads it and uses the result. | `string` | `""` | no |
+| <a name="input_bond_lacp_rate"></a> [bond\_lacp\_rate](#input\_bond\_lacp\_rate) | LACP rate override ('fast' or 'slow'). Only relevant when bond\_mode is '802.3ad'. Overrides the value from the JSON config export. | `string` | `null` | no |
+| <a name="input_bond_mode"></a> [bond\_mode](#input\_bond\_mode) | Bond mode override (e.g. 'active-backup', 'balance-slb', '802.3ad'). Overrides the value from the JSON config export. Use 'active-backup' for single-NIC or when the switch is not running LACP. | `string` | `null` | no |
 | <a name="input_config"></a> [config](#input\_config) | The .config object from the Foundation preconfiguration JSON export (install.nutanix.com). Passed through as-is. | `any` | n/a | yes |
-| <a name="input_nos_package"></a> [nos\_package](#input\_nos\_package) | NOS package filename on the Foundation VM. If empty, auto-discovered from the Foundation server. | `string` | `""` | no |
+| <a name="input_esx_iso_checksum"></a> [esx\_iso\_checksum](#input\_esx\_iso\_checksum) | MD5 checksum of the ESXi ISO. Optional. | `string` | `null` | no |
+| <a name="input_esx_iso_filename"></a> [esx\_iso\_filename](#input\_esx\_iso\_filename) | ESXi ISO filename on the Foundation VM. | `string` | `""` | no |
+| <a name="input_esx_iso_local_path"></a> [esx\_iso\_local\_path](#input\_esx\_iso\_local\_path) | Local path to ESXi ISO. If set, Terraform uploads it and uses the result. | `string` | `""` | no |
+| <a name="input_hyperv_iso_checksum"></a> [hyperv\_iso\_checksum](#input\_hyperv\_iso\_checksum) | MD5 checksum of the Hyper-V ISO. Optional. | `string` | `null` | no |
+| <a name="input_hyperv_iso_filename"></a> [hyperv\_iso\_filename](#input\_hyperv\_iso\_filename) | Hyper-V ISO filename on the Foundation VM. | `string` | `""` | no |
+| <a name="input_hyperv_iso_local_path"></a> [hyperv\_iso\_local\_path](#input\_hyperv\_iso\_local\_path) | Local path to Hyper-V ISO. If set, Terraform uploads it and uses the result. | `string` | `""` | no |
+| <a name="input_hypervisor_nameserver"></a> [hypervisor\_nameserver](#input\_hypervisor\_nameserver) | DNS server for the hypervisor. | `string` | `null` | no |
+| <a name="input_hypervisor_password"></a> [hypervisor\_password](#input\_hypervisor\_password) | Password to set on the hypervisor after imaging. | `string` | `null` | no |
+| <a name="input_layout_egg_uuid"></a> [layout\_egg\_uuid](#input\_layout\_egg\_uuid) | UUID of a custom disk layout. | `string` | `null` | no |
+| <a name="input_nos_package"></a> [nos\_package](#input\_nos\_package) | NOS .tar.gz filename on the Foundation VM. Empty = auto-discover. | `string` | `""` | no |
+| <a name="input_nos_package_local_path"></a> [nos\_package\_local\_path](#input\_nos\_package\_local\_path) | Local path to NOS .tar.gz on the machine running tofu. If set, Terraform uploads it and uses the result as nos\_package. | `string` | `""` | no |
+| <a name="input_run_ncc"></a> [run\_ncc](#input\_run\_ncc) | Run NCC checks after imaging. | `bool` | `null` | no |
+| <a name="input_run_syscheck"></a> [run\_syscheck](#input\_run\_syscheck) | Run system health checks after imaging. | `bool` | `null` | no |
+| <a name="input_skip_hypervisor"></a> [skip\_hypervisor](#input\_skip\_hypervisor) | If true, skip hypervisor installation (AOS-only reimaging). | `bool` | `false` | no |
+| <a name="input_svm_rescue_args"></a> [svm\_rescue\_args](#input\_svm\_rescue\_args) | Extra arguments to pass to svm\_rescue during AOS install. | `list(string)` | `null` | no |
+| <a name="input_timeout_minutes"></a> [timeout\_minutes](#input\_timeout\_minutes) | Imaging timeout in minutes. | `number` | `120` | no |
 
 ## Outputs
 
