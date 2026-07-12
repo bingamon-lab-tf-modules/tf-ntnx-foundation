@@ -149,3 +149,77 @@ variable "timeout_minutes" {
   type        = number
   default     = 120
 }
+
+##################################################
+# IPMI pre-imaging configuration
+# (nutanix_foundation_ipmi_config — provider 2.4.2)
+##################################################
+
+variable "ipmi_configs" {
+  description = <<-EOT
+    Per-node IPMI/BMC network configuration for factory-fresh nodes, keyed by a node label.
+    Populated from the SOPS-encrypted foundation JSON (config/foundation/<env>.sops.json) —
+    the IPMI network fields carry no secrets, but they live beside the encrypted credentials.
+
+    This drives nutanix_foundation_ipmi_config: the PRE-imaging step that sets a node's
+    out-of-band BMC IP/netmask/gateway via the Foundation VM so the node becomes reachable.
+    It is distinct from nutanix_foundation_image_nodes, which images the node and forms the
+    cluster AFTER IPMI is reachable.
+
+    One-shot / no-op destroy: applying configures the physical BMC out-of-band. `tofu destroy`
+    removes the resource from state only — it does NOT reset or de-configure the hardware IPMI
+    interface. Re-imaging or re-configuring is idempotent from the node's perspective.
+
+    Leave the default {} to plan zero IPMI resources.
+  EOT
+  type = map(object({
+    ipmi_ip            = string
+    ipmi_netmask       = string
+    ipmi_gateway       = string
+    ipmi_mac           = optional(string, "")
+    ipmi_configure_now = optional(bool, true)
+    block_id           = optional(string)
+  }))
+  default = {}
+
+  validation {
+    condition = alltrue([
+      for k, v in var.ipmi_configs : can(regex("^(\\d{1,3}\\.){3}\\d{1,3}$", v.ipmi_ip))
+    ])
+    error_message = "Every ipmi_configs entry must set ipmi_ip to a valid IPv4 address (n.n.n.n)."
+  }
+
+  validation {
+    condition = alltrue([
+      for k, v in var.ipmi_configs : can(regex("^(\\d{1,3}\\.){3}\\d{1,3}$", v.ipmi_netmask))
+    ])
+    error_message = "Every ipmi_configs entry must set ipmi_netmask to a valid IPv4 netmask (n.n.n.n)."
+  }
+
+  validation {
+    condition = alltrue([
+      for k, v in var.ipmi_configs : can(regex("^(\\d{1,3}\\.){3}\\d{1,3}$", v.ipmi_gateway))
+    ])
+    error_message = "Every ipmi_configs entry must set ipmi_gateway to a valid IPv4 address (n.n.n.n)."
+  }
+}
+
+variable "ipmi_credentials" {
+  description = <<-EOT
+    IPMI/BMC login credentials applied to every ipmi_configs node. Factory-fresh nodes share a
+    uniform default BMC credential, so a single shared user/password is supplied here.
+
+    Secrets — sourced ONLY from the SOPS-encrypted foundation JSON, never from plaintext YAML or
+    the wizard file. Consumed only when ipmi_configs is non-empty; the empty default plans no
+    IPMI resources.
+  EOT
+  type = object({
+    ipmi_user     = string
+    ipmi_password = string
+  })
+  default = {
+    ipmi_user     = ""
+    ipmi_password = ""
+  }
+  sensitive = true
+}

@@ -18,6 +18,15 @@ The module accepts the `.config` object from the exported JSON as-is,
 making it straightforward to go from the preconfiguration wizard to a
 Terraform-managed deployment.
 
+It also wraps `nutanix_foundation_ipmi_config` for the **pre-imaging** IPMI/BMC
+network setup step (see [IPMI Pre-Imaging Configuration](#ipmi-pre-imaging-configuration)).
+
+> **Foundation Central is intentionally out of scope.** The `nutanix_foundation_central_*`
+> resources (API key, image cluster, onboard nodes) are **not** implemented — no Foundation
+> Central server exists in the lab, and an unreachable FC endpoint would fail every plan/apply.
+> This is recorded in `docs/spec.md` §12 and a Foundation Central scope ADR (re-evaluate when
+> an FC server is deployed or on each `nutanix` provider minor release).
+
 ## Usage
 
 ```hcl
@@ -93,6 +102,47 @@ When `var.nos_package` is explicitly set, the data source is **not**
 evaluated, allowing `tofu plan` to run without connectivity to a
 Foundation VM.
 
+## IPMI Pre-Imaging Configuration
+
+`nutanix_foundation_ipmi_config` sets a factory-fresh node's out-of-band BMC
+(IPMI) IP, netmask, and gateway via the Foundation VM. This is the **pre-imaging**
+step: it gives each node's BMC a network identity so the node becomes reachable.
+
+This is **not** the same as `nutanix_foundation_image_nodes` (the `imaging`
+resource): that resource images nodes and forms clusters via the Foundation VM
+**after** IPMI is already reachable. Run `ipmi_config` first for nodes whose BMC
+is not yet on the network; run `image_nodes` to actually image them.
+
+Supply per-node network settings in `var.ipmi_configs` (a map keyed by node
+label) and the shared BMC login in the sensitive `var.ipmi_credentials`. Both are
+sourced from the SOPS-encrypted foundation JSON — IPMI credentials must never
+appear in plaintext YAML or the wizard file. An empty `ipmi_configs` (the
+default) plans zero IPMI resources.
+
+```hcl
+module "foundation" {
+  source = "path/to/tf-ntnx-foundation/module"
+
+  config = local.config
+
+  ipmi_configs = {
+    node_1 = {
+      ipmi_ip      = "10.0.100.11"
+      ipmi_netmask = "255.255.255.0"
+      ipmi_gateway = "10.0.100.1"
+    }
+  }
+  ipmi_credentials = {
+    ipmi_user     = "ADMIN"        # from *.sops.json
+    ipmi_password = var.ipmi_password
+  }
+}
+```
+
+**One-shot semantics:** applying configures the physical BMC out-of-band.
+`tofu destroy` removes the resource from state only — it does **not** reset or
+de-configure the hardware IPMI interface.
+
 ## Environment Variables
 
 The Nutanix provider reads the following environment variables for
@@ -145,6 +195,7 @@ No modules.
 | [nutanix_foundation_image.hyperv](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/foundation_image) | resource |
 | [nutanix_foundation_image.nos](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/foundation_image) | resource |
 | [nutanix_foundation_image_nodes.imaging](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/foundation_image_nodes) | resource |
+| [nutanix_foundation_ipmi_config.ipmi_config](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/foundation_ipmi_config) | resource |
 | [nutanix_foundation_nos_packages.nos](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/data-sources/foundation_nos_packages) | data source |
 
 ## Inputs
@@ -165,6 +216,8 @@ No modules.
 | <a name="input_hyperv_iso_local_path"></a> [hyperv\_iso\_local\_path](#input\_hyperv\_iso\_local\_path) | Local path to Hyper-V ISO. If set, Terraform uploads it and uses the result. | `string` | `""` | no |
 | <a name="input_hypervisor_nameserver"></a> [hypervisor\_nameserver](#input\_hypervisor\_nameserver) | DNS server for the hypervisor. | `string` | `null` | no |
 | <a name="input_hypervisor_password"></a> [hypervisor\_password](#input\_hypervisor\_password) | Password to set on the hypervisor after imaging. | `string` | `null` | no |
+| <a name="input_ipmi_configs"></a> [ipmi\_configs](#input\_ipmi\_configs) | Per-node IPMI/BMC network configuration for factory-fresh nodes, keyed by a node label.<br/>Populated from the SOPS-encrypted foundation JSON (config/foundation/<env>.sops.json) —<br/>the IPMI network fields carry no secrets, but they live beside the encrypted credentials.<br/><br/>This drives nutanix\_foundation\_ipmi\_config: the PRE-imaging step that sets a node's<br/>out-of-band BMC IP/netmask/gateway via the Foundation VM so the node becomes reachable.<br/>It is distinct from nutanix\_foundation\_image\_nodes, which images the node and forms the<br/>cluster AFTER IPMI is reachable.<br/><br/>One-shot / no-op destroy: applying configures the physical BMC out-of-band. `tofu destroy`<br/>removes the resource from state only — it does NOT reset or de-configure the hardware IPMI<br/>interface. Re-imaging or re-configuring is idempotent from the node's perspective.<br/><br/>Leave the default {} to plan zero IPMI resources. | <pre>map(object({<br/>    ipmi_ip            = string<br/>    ipmi_netmask       = string<br/>    ipmi_gateway       = string<br/>    ipmi_mac           = optional(string, "")<br/>    ipmi_configure_now = optional(bool, true)<br/>    block_id           = optional(string)<br/>  }))</pre> | `{}` | no |
+| <a name="input_ipmi_credentials"></a> [ipmi\_credentials](#input\_ipmi\_credentials) | IPMI/BMC login credentials applied to every ipmi\_configs node. Factory-fresh nodes share a<br/>uniform default BMC credential, so a single shared user/password is supplied here.<br/><br/>Secrets — sourced ONLY from the SOPS-encrypted foundation JSON, never from plaintext YAML or<br/>the wizard file. Consumed only when ipmi\_configs is non-empty; the empty default plans no<br/>IPMI resources. | <pre>object({<br/>    ipmi_user     = string<br/>    ipmi_password = string<br/>  })</pre> | <pre>{<br/>  "ipmi_password": "",<br/>  "ipmi_user": ""<br/>}</pre> | no |
 | <a name="input_layout_egg_uuid"></a> [layout\_egg\_uuid](#input\_layout\_egg\_uuid) | UUID of a custom disk layout. | `string` | `null` | no |
 | <a name="input_nos_package"></a> [nos\_package](#input\_nos\_package) | NOS .tar.gz filename on the Foundation VM. Empty = auto-discover. | `string` | `""` | no |
 | <a name="input_nos_package_local_path"></a> [nos\_package\_local\_path](#input\_nos\_package\_local\_path) | Local path to NOS .tar.gz on the machine running tofu. If set, Terraform uploads it and uses the result as nos\_package. | `string` | `""` | no |
@@ -180,5 +233,7 @@ No modules.
 |------|-------------|
 | <a name="output_cluster_urls"></a> [cluster\_urls](#output\_cluster\_urls) | URLs of created clusters |
 | <a name="output_foundation_status"></a> [foundation\_status](#output\_foundation\_status) | Status summary of the foundation imaging operation |
+| <a name="output_ipmi_config_ids"></a> [ipmi\_config\_ids](#output\_ipmi\_config\_ids) | Map of node label => nutanix\_foundation\_ipmi\_config resource id. |
+| <a name="output_ipmi_configs"></a> [ipmi\_configs](#output\_ipmi\_configs) | Per-node IPMI configuration results keyed by node label (resource id + per-node BMC configure status). |
 | <a name="output_session_id"></a> [session\_id](#output\_session\_id) | Foundation imaging session ID |
 <!-- END_TF_DOCS -->
