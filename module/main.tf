@@ -124,3 +124,33 @@ resource "nutanix_foundation_image_nodes" "imaging" {
     }
   }
 }
+
+# Pre-imaging IPMI/BMC network configuration for factory-fresh nodes.
+#
+# One resource per node (for_each over var.ipmi_configs); an empty map plans zero resources.
+# Shared BMC credentials come from the sensitive var.ipmi_credentials (SOPS plane only).
+#
+# NOT to be confused with nutanix_foundation_image_nodes.imaging above: that images nodes and
+# forms clusters via the Foundation VM once IPMI is reachable. THIS resource is the earlier
+# out-of-band step that gives each node's BMC its network identity.
+#
+# One-shot: apply configures the hardware BMC; destroy drops state only and does not
+# de-configure the physical IPMI interface (see var.ipmi_configs).
+resource "nutanix_foundation_ipmi_config" "ipmi_config" {
+  for_each = var.ipmi_configs
+
+  ipmi_user     = var.ipmi_credentials.ipmi_user
+  ipmi_password = var.ipmi_credentials.ipmi_password
+  ipmi_netmask  = each.value.ipmi_netmask
+  ipmi_gateway  = each.value.ipmi_gateway
+
+  blocks {
+    block_id = each.value.block_id
+
+    nodes {
+      ipmi_ip            = each.value.ipmi_ip
+      ipmi_mac           = each.value.ipmi_mac
+      ipmi_configure_now = each.value.ipmi_configure_now
+    }
+  }
+}
