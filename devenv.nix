@@ -14,6 +14,7 @@ let
     # Common
     convco
     figlet
+    gh
     git
     gnutar
     hello
@@ -32,6 +33,7 @@ let
     # Secrets
     age
     ssh-to-age
+    sops
     ssh-to-pgp
 
     # Terraform/OpenTofu
@@ -74,6 +76,10 @@ in
     enable = true;
     pull = [
       "bingamon-lab-tf-modules"
+      "pre-commit-hooks"
+      "devenv.cachix.org"
+      "cache.nixos.org"
+      "nix-community.cachix.org"
     ];
     push = "bingamon-lab-tf-modules";
   };
@@ -95,20 +101,28 @@ in
     packages ++ lib.optionals (!config.container.isBuilding || config.name == "devenv") devPackages;
 
   enterShell = ''
-    figlet -f starwars -w 180 $PROJECT
+    if [[ "${"CI:-false"}" == "true" ]]; then
+      echo "devenv running in CI"
+    else
+      figlet -f slant -w 180 "$(echo "$PROJECT" | tr '[:lower:]-' '[:upper:] ')"
 
-    hello --greeting="Hello ''${USER:-user}, welcome to the $PROJECT project!"
+      hello --greeting="Hello ''${USER:-user}, welcome to the $PROJECT project."
 
-    echo ""
-    echo "#########################"
-    echo "#### Helper scripts #####"
-    echo "#########################"
-    echo ""
-    ${pkgs.gnused}/bin/sed -e 's| |••|g' -e 's|=| |' <<EOF | ${pkgs.util-linuxMinimal}/bin/column -t | ${pkgs.gnused}/bin/sed -e 's|^|🦾 |' -e 's|••| |g'
-    ${lib.generators.toKeyValue { } (lib.mapAttrs (_name: value: value.description) config.scripts)}
-    EOF
-    echo ""
-    echo "#########################"
+      ${lib.optionalString (config.scripts != { }) ''
+        echo ""
+        echo "#########################"
+        echo "#### Helper scripts #####"
+        echo "#########################"
+        echo "🦾"
+        ${lib.concatStrings (
+          lib.mapAttrsToList (
+            name: value: "printf '🦾 %-20s  %s\\n' '${name}' '${value.description}'\n"
+          ) config.scripts
+        )}
+        echo "🦾"
+        echo "#########################"
+      ''}
+    fi
   '';
 
   languages = {
@@ -143,9 +157,11 @@ in
       golines.enable = true;
       gotest.enable = true;
       govet.enable = true;
-      gptcommit.enable = true;
       markdownlint = {
         enable = true;
+        excludes = [
+          "module/README.md"
+        ];
         settings = {
           configuration = {
             MD013 = {
@@ -164,7 +180,7 @@ in
         };
       };
       mixed-line-endings.enable = true;
-      nixfmt-rfc-style.enable = true;
+      nixfmt.enable = true;
       pre-commit-hook-ensure-sops.enable = true;
       prettier = {
         enable = true;
@@ -195,7 +211,7 @@ in
       };
       tflint.enable = true;
       trim-trailing-whitespace.enable = true;
-      trufflehog.enable = false;
+      trufflehog.enable = true;
       typos.enable = true;
       yamllint = {
         enable = true;
@@ -270,9 +286,33 @@ in
         fi
         echo "Checking Terraform Module for ''${MODULE_HOME}"
         tofu-format "''${MODULE_HOME}" || exit 1
+        tofu-clean "''${MODULE_HOME}" || exit 1
         tofu-init "''${MODULE_HOME}" || exit 1
         tofu-validate "''${MODULE_HOME}" || exit 1
         tofu-docs "''${MODULE_HOME}" || exit 1
+      '';
+    };
+
+    tofu-clean = {
+      package = pkgs.bash;
+      description = "Clean the OpenTofu providers for a given directory";
+      exec = ''
+        DIR="''${1:-}"
+        if [ "''${DIR:-EMPTY}" == "EMPTY" ];
+        then
+          echo "Usage: $0 <directory>"
+          exit 1
+        fi
+        if [ ! -d "''${DIR}" ];
+        then
+          echo "Directory ''${DIR} does not exist"
+          exit 1
+        fi
+        echo "Cleaning OpenTofu state in ''${DIR}"
+        pushd "''${DIR}"
+        # Remove any stale .terraform dir so there is no cached backend state.
+        rm -rf "''${DIR}/.terraform"
+        popd
       '';
     };
 

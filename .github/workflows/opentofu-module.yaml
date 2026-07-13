@@ -162,6 +162,18 @@ jobs:
             exit 1
           fi
 
+      - id: opentofu_legacy_check
+        name: OpenTofu Legacy Resource Sweep
+        shell: devenv shell --quiet bash -- -e {0}
+        run: |
+          echo "🚫 Checking for legacy (non-_v2) nutanix resources..."
+          if ! ./scripts/check-legacy-resources.sh;
+          then
+            echo "❌ Legacy nutanix resources or data sources found!"
+            exit 1
+          fi
+          echo "✅ No legacy nutanix resources or data sources"
+
       - id: opentofu_validate
         name: OpenTofu Validate
         shell: devenv shell --quiet bash -- -e {0}
