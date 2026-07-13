@@ -71,15 +71,10 @@ in
   env = {
     PROJECT = config.name;
   };
-
   cachix = {
     enable = true;
     pull = [
       "bingamon-lab-tf-modules"
-      "pre-commit-hooks"
-      "devenv.cachix.org"
-      "cache.nixos.org"
-      "nix-community.cachix.org"
     ];
     push = "bingamon-lab-tf-modules";
   };
