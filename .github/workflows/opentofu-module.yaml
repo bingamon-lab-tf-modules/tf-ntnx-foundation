@@ -40,6 +40,7 @@ env:
 
   # Nix
   NIXPKGS_ALLOW_UNFREE: 1
+  CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   # OpenTofu Module
   MODULE_HOME: module
@@ -151,8 +152,6 @@ jobs:
             then
               echo "❌ Module README.md is out of date!"
               echo "💡 Run: tofu-docs ${MODULE_HOME} locally to update the README.md"
-              echo "Displaying diff..."
-              terraform-docs --output-check --config .terraform-docs.yml ${MODULE_HOME}
               exit 1
             fi
             echo "✅ Documentation is up to date"
@@ -223,6 +222,11 @@ jobs:
             echo "⚠️ tflint not available, linting failed"
             exit 1
           fi
+
+      - id: opentofu_test_guard
+        name: OpenTofu Test Guard
+        run: |
+          count=$(find "${MODULE_HOME}" -name '*.tftest.hcl' | wc -l); [ "$count" -gt 0 ] || { echo "no tftest files — see tf-ntnx-lcm/module/tests for the reference pattern"; exit 1; }
 
       - id: opentofu_test
         name: OpenTofu Test
