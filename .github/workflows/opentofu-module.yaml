@@ -40,7 +40,6 @@ env:
 
   # Nix
   NIXPKGS_ALLOW_UNFREE: 1
-  CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
   # OpenTofu Module
   MODULE_HOME: module
@@ -152,6 +151,8 @@ jobs:
             then
               echo "❌ Module README.md is out of date!"
               echo "💡 Run: tofu-docs ${MODULE_HOME} locally to update the README.md"
+              echo "Displaying diff..."
+              terraform-docs --output-check --config .terraform-docs.yml ${MODULE_HOME}
               exit 1
             fi
             echo "✅ Documentation is up to date"
