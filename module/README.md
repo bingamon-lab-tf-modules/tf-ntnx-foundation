@@ -173,7 +173,7 @@ Foundation connectivity:
 
 | Name | Version |
 |------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.9.0 |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.10.0 |
 | <a name="requirement_nutanix"></a> [nutanix](#requirement\_nutanix) | >= 2.4.2 |
 
 ## Providers
@@ -196,7 +196,6 @@ No modules.
 | [nutanix_foundation_image.nos](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/foundation_image) | resource |
 | [nutanix_foundation_image_nodes.imaging](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/foundation_image_nodes) | resource |
 | [nutanix_foundation_ipmi_config.ipmi_config](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/foundation_ipmi_config) | resource |
-| [nutanix_foundation_nos_packages.nos](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/data-sources/foundation_nos_packages) | data source |
 
 ## Inputs
 

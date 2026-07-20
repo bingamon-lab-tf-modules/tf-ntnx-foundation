@@ -224,6 +224,11 @@ jobs:
             exit 1
           fi
 
+      - id: opentofu_test_guard
+        name: OpenTofu Test Guard
+        run: |
+          count=$(find "${MODULE_HOME}" -name '*.tftest.hcl' | wc -l); [ "$count" -gt 0 ] || { echo "no tftest files — see tf-ntnx-lcm/module/tests for the reference pattern"; exit 1; }
+
       - id: opentofu_test
         name: OpenTofu Test
         shell: devenv shell --quiet bash -- -e {0}
