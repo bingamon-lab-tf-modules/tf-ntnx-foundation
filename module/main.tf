@@ -67,13 +67,21 @@ resource "nutanix_foundation_image_nodes" "imaging" {
       dynamic "nodes" {
         for_each = try(blocks.value.nodes, [])
         content {
-          node_position        = nodes.value.node_position
-          hypervisor_hostname  = nodes.value.hypervisor_hostname
-          hypervisor_ip        = nodes.value.hypervisor_ip
-          cvm_ip               = nodes.value.cvm_ip
-          ipmi_ip              = nodes.value.ipmi_ip
-          ipmi_user            = try(nodes.value.ipmi_user, null)
-          ipmi_password        = try(nodes.value.ipmi_password, null)
+          node_position       = nodes.value.node_position
+          hypervisor_hostname = nodes.value.hypervisor_hostname
+          hypervisor_ip       = nodes.value.hypervisor_ip
+          cvm_ip              = nodes.value.cvm_ip
+          ipmi_ip             = nodes.value.ipmi_ip
+          # BMC login comes from the sensitive map only (not nested config keys),
+          # so plan redacts passwords without tainting booleans/IPs from config.
+          ipmi_user = try(
+            var.node_ipmi_credentials[nodes.value.hypervisor_hostname].ipmi_user,
+            null
+          )
+          ipmi_password = try(
+            var.node_ipmi_credentials[nodes.value.hypervisor_hostname].ipmi_password,
+            null
+          )
           ipmi_mac             = try(nodes.value.ipmi_mac, null) != "" ? try(nodes.value.ipmi_mac, null) : null
           cvm_gb_ram           = try(nodes.value.cvm_gb_ram, null)
           image_now            = try(nodes.value.image_now, true)

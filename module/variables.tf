@@ -1,5 +1,13 @@
 variable "config" {
-  description = "The .config object from the Foundation preconfiguration JSON export (install.nutanix.com). Passed through as-is."
+  description = <<-EOT
+    The .config object from the Foundation preconfiguration JSON export (install.nutanix.com).
+
+    Non-secret geometry only: gateways, blocks/nodes (IPs, hostnames, positions), clusters.
+    Do NOT pass node BMC passwords here — they would appear in clear text in plans.
+    Supply per-node BMC login via var.node_ipmi_credentials (keyed by hypervisor_hostname).
+    Shared factory BMC login for nutanix_foundation_ipmi_config is var.ipmi_credentials.
+    Hypervisor password after imaging is var.hypervisor_password.
+  EOT
   type        = any
 
   validation {
@@ -16,6 +24,22 @@ variable "config" {
     condition     = can(var.config.clusters) && length(var.config.clusters) > 0
     error_message = "config must contain at least one cluster definition."
   }
+}
+
+variable "node_ipmi_credentials" {
+  description = <<-EOT
+    Per-node BMC credentials for nutanix_foundation_image_nodes, keyed by the node's
+    hypervisor_hostname (must match config.blocks[*].nodes[*].hypervisor_hostname).
+
+    Sensitive — sourced from SOPS-encrypted foundation JSON by the caller, never left as
+    nested keys on var.config (which would print in plan).
+  EOT
+  type = map(object({
+    ipmi_user     = optional(string, null)
+    ipmi_password = string
+  }))
+  default   = {}
+  sensitive = true
 }
 
 ##################################################
