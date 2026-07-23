@@ -147,17 +147,21 @@ resource "nutanix_foundation_image_nodes" "imaging" {
 resource "nutanix_foundation_ipmi_config" "ipmi_config" {
   for_each = var.ipmi_configs
 
+  # Credentials stay redacted (sensitive var).
   ipmi_user     = var.ipmi_credentials.ipmi_user
   ipmi_password = var.ipmi_credentials.ipmi_password
-  ipmi_netmask  = each.value.ipmi_netmask
-  ipmi_gateway  = each.value.ipmi_gateway
+  # Network geometry is public — same values imaging prints in clear text.
+  # nonsensitive(): callers may still pass SOPS-tainted leaves for these fields;
+  # strip the mark so plan shows gateway/netmask/ip like image_nodes does.
+  ipmi_netmask = nonsensitive(each.value.ipmi_netmask)
+  ipmi_gateway = nonsensitive(each.value.ipmi_gateway)
 
   blocks {
     block_id = each.value.block_id
 
     nodes {
-      ipmi_ip            = each.value.ipmi_ip
-      ipmi_mac           = each.value.ipmi_mac
+      ipmi_ip            = nonsensitive(each.value.ipmi_ip)
+      ipmi_mac           = nonsensitive(each.value.ipmi_mac)
       ipmi_configure_now = each.value.ipmi_configure_now
     }
   }
