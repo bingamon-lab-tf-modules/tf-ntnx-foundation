@@ -83,8 +83,11 @@ locals {
   ipmi_geometry = merge([
     for b in try(var.config.blocks, []) : {
       for n in try(b.nodes, []) : n.hypervisor_hostname => {
-        ipmi_ip            = try(n.ipmi_ip, null)
-        ipmi_mac           = try(n.ipmi_mac, "") != "" ? try(n.ipmi_mac, null) : null
+        ipmi_ip = try(n.ipmi_ip, null)
+        # ipmi_mac is a REQUIRED argument on nutanix_foundation_ipmi_config's nodes
+        # block, so it must be present (non-null). Default to "" when a node omits it;
+        # null would fail provider schema validation ("Missing required argument").
+        ipmi_mac           = try(n.ipmi_mac, "")
         ipmi_configure_now = try(n.ipmi_configure_now, true)
         ipmi_netmask       = try(var.config.ipmi_netmask, null)
         ipmi_gateway       = try(var.config.ipmi_gateway, null)
