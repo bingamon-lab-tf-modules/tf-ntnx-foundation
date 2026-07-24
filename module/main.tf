@@ -67,13 +67,21 @@ resource "nutanix_foundation_image_nodes" "imaging" {
       dynamic "nodes" {
         for_each = try(blocks.value.nodes, [])
         content {
-          node_position        = nodes.value.node_position
-          hypervisor_hostname  = nodes.value.hypervisor_hostname
-          hypervisor_ip        = nodes.value.hypervisor_ip
-          cvm_ip               = nodes.value.cvm_ip
-          ipmi_ip              = nodes.value.ipmi_ip
-          ipmi_user            = try(nodes.value.ipmi_user, null)
-          ipmi_password        = try(nodes.value.ipmi_password, null)
+          node_position       = nodes.value.node_position
+          hypervisor_hostname = nodes.value.hypervisor_hostname
+          hypervisor_ip       = nodes.value.hypervisor_ip
+          cvm_ip              = nodes.value.cvm_ip
+          ipmi_ip             = try(nodes.value.ipmi_ip, null)
+          # BMC login comes from the sensitive map only (not nested config keys),
+          # so plan redacts passwords without tainting booleans/IPs from config.
+          ipmi_user = try(
+            var.node_ipmi_credentials[nodes.value.hypervisor_hostname].ipmi_user,
+            null
+          )
+          ipmi_password = try(
+            var.node_ipmi_credentials[nodes.value.hypervisor_hostname].ipmi_password,
+            null
+          )
           ipmi_mac             = try(nodes.value.ipmi_mac, null) != "" ? try(nodes.value.ipmi_mac, null) : null
           cvm_gb_ram           = try(nodes.value.cvm_gb_ram, null)
           image_now            = try(nodes.value.image_now, true)
@@ -137,12 +145,18 @@ resource "nutanix_foundation_image_nodes" "imaging" {
 # One-shot: apply configures the hardware BMC; destroy drops state only and does not
 # de-configure the physical IPMI interface (see var.ipmi_configs).
 resource "nutanix_foundation_ipmi_config" "ipmi_config" {
-  for_each = var.ipmi_configs
+  # Geometry map only (hostnames → IPs). Credentials are a separate sensitive var.
+  # nonsensitive(): OpenTofu rejects sensitive for_each maps; callers may pass
+  # values derived from SOPS-decrypted JSON even after stripping BMC passwords.
+  for_each = nonsensitive(local.ipmi_geometry)
 
-  ipmi_user     = var.ipmi_credentials.ipmi_user
-  ipmi_password = var.ipmi_credentials.ipmi_password
-  ipmi_netmask  = each.value.ipmi_netmask
-  ipmi_gateway  = each.value.ipmi_gateway
+  # Per-node credentials from var.node_ipmi_credentials
+  ipmi_user     = var.node_ipmi_credentials[each.key].ipmi_user
+  ipmi_password = var.node_ipmi_credentials[each.key].ipmi_password
+
+  # Network geometry is public — same values imaging prints in clear text.
+  ipmi_netmask = each.value.ipmi_netmask
+  ipmi_gateway = each.value.ipmi_gateway
 
   blocks {
     block_id = each.value.block_id

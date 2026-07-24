@@ -59,3 +59,6 @@ devenv.local.nix
 # pre-commit
 .pre-commit-config.yaml
 .devcontainer/
+
+# TARS agent backlog scratch
+.tars/
