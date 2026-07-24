@@ -66,7 +66,7 @@ let
 
 in
 {
-  name = "tf-template";
+  name = "tf-ntnx-foundation";
 
   env = {
     PROJECT = config.name;
