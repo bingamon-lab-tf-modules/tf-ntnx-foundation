@@ -80,7 +80,6 @@ locals {
   ##################################################
   # IPMI Geometry (built from config)
   ##################################################
-  # tflint-ignore: terraform_unused_declarations
   ipmi_geometry = merge([
     for b in try(var.config.blocks, []) : {
       for n in try(b.nodes, []) : n.hypervisor_hostname => {

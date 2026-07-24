@@ -15,6 +15,8 @@ variables {
     cvm_netmask        = "255.255.255.0"
     hypervisor_gateway = "10.0.0.1"
     hypervisor_netmask = "255.255.255.0"
+    ipmi_gateway       = "10.0.0.1"
+    ipmi_netmask       = "255.255.255.0"
     rdma_passthrough   = false
     blocks = [{
       block_id = null
@@ -23,7 +25,7 @@ variables {
         hypervisor_hostname = "test-host-1"
         hypervisor_ip       = "10.0.0.11"
         cvm_ip              = "10.0.0.21"
-        ipmi_ip             = "10.0.0.31"
+        # ipmi_ip             = "10.0.0.31"
         # Intentionally NO ipmi_password here — must come from node_ipmi_credentials
       }]
     }]
@@ -59,6 +61,7 @@ run "plans_with_node_ipmi_credentials" {
 
 run "plans_without_node_ipmi_credentials" {
   command = plan
+
 
   variables {
     node_ipmi_credentials = {}

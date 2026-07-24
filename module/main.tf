@@ -71,7 +71,7 @@ resource "nutanix_foundation_image_nodes" "imaging" {
           hypervisor_hostname = nodes.value.hypervisor_hostname
           hypervisor_ip       = nodes.value.hypervisor_ip
           cvm_ip              = nodes.value.cvm_ip
-          ipmi_ip             = nodes.value.ipmi_ip
+          ipmi_ip             = try(nodes.value.ipmi_ip, null)
           # BMC login comes from the sensitive map only (not nested config keys),
           # so plan redacts passwords without tainting booleans/IPs from config.
           ipmi_user = try(
@@ -145,23 +145,25 @@ resource "nutanix_foundation_image_nodes" "imaging" {
 # One-shot: apply configures the hardware BMC; destroy drops state only and does not
 # de-configure the physical IPMI interface (see var.ipmi_configs).
 resource "nutanix_foundation_ipmi_config" "ipmi_config" {
-  for_each = var.ipmi_configs
+  # Geometry map only (hostnames → IPs). Credentials are a separate sensitive var.
+  # nonsensitive(): OpenTofu rejects sensitive for_each maps; callers may pass
+  # values derived from SOPS-decrypted JSON even after stripping BMC passwords.
+  for_each = nonsensitive(local.ipmi_geometry)
 
-  # Credentials stay redacted (sensitive var).
-  ipmi_user     = var.ipmi_credentials.ipmi_user
-  ipmi_password = var.ipmi_credentials.ipmi_password
+  # Per-node credentials from var.node_ipmi_credentials
+  ipmi_user     = var.node_ipmi_credentials[each.key].ipmi_user
+  ipmi_password = var.node_ipmi_credentials[each.key].ipmi_password
+
   # Network geometry is public — same values imaging prints in clear text.
-  # nonsensitive(): callers may still pass SOPS-tainted leaves for these fields;
-  # strip the mark so plan shows gateway/netmask/ip like image_nodes does.
-  ipmi_netmask = nonsensitive(each.value.ipmi_netmask)
-  ipmi_gateway = nonsensitive(each.value.ipmi_gateway)
+  ipmi_netmask = each.value.ipmi_netmask
+  ipmi_gateway = each.value.ipmi_gateway
 
   blocks {
     block_id = each.value.block_id
 
     nodes {
-      ipmi_ip            = nonsensitive(each.value.ipmi_ip)
-      ipmi_mac           = nonsensitive(each.value.ipmi_mac)
+      ipmi_ip            = each.value.ipmi_ip
+      ipmi_mac           = each.value.ipmi_mac
       ipmi_configure_now = each.value.ipmi_configure_now
     }
   }
