@@ -4,6 +4,11 @@ resource "nutanix_foundation_image_nodes" "imaging" {
     nutanix_foundation_image.ahv,
     nutanix_foundation_image.esx,
     nutanix_foundation_image.hyperv,
+    # BMC network identity must exist before Foundation can image over it. Without
+    # this edge the two are independent graph nodes and OpenTofu runs them
+    # concurrently — which would re-IP a BMC mid-imaging. No-op when no node opts
+    # in to ipmi_config (the usual case).
+    nutanix_foundation_ipmi_config.ipmi_config,
   ]
 
   timeouts {
@@ -135,24 +140,38 @@ resource "nutanix_foundation_image_nodes" "imaging" {
 
 # Pre-imaging IPMI/BMC network configuration for factory-fresh nodes.
 #
-# One resource per node (for_each over var.ipmi_configs); an empty map plans zero resources.
-# Shared BMC credentials come from the sensitive var.ipmi_credentials (SOPS plane only).
+# One resource per OPTED-IN node (for_each over local.ipmi_geometry, which selects nodes
+# carrying `ipmi_configure_now = true`). Nodes whose BMC is already on the network — the
+# usual case, and the only case a wizard export produces — plan zero resources here.
+# Per-node BMC credentials come from the sensitive var.node_ipmi_credentials (SOPS plane).
 #
 # NOT to be confused with nutanix_foundation_image_nodes.imaging above: that images nodes and
 # forms clusters via the Foundation VM once IPMI is reachable. THIS resource is the earlier
-# out-of-band step that gives each node's BMC its network identity.
+# out-of-band step that gives each node's BMC its network identity, and `imaging` now has an
+# explicit depends_on so the ordering the docs describe is the ordering the graph enforces.
+#
+# Foundation prerequisites for this to succeed (it drives `configure_node` on the Foundation
+# VM, which reports failures as an opaque Python function repr — the real error is in
+# /home/nutanix/foundation/log/service.log):
+#   - The Foundation VM must be in the SAME BROADCAST DOMAIN as the target IPMI interfaces.
+#     An unconfigured BMC has no IP, so Foundation addresses it at layer 2.
+#   - Each node's ipmi_mac must be known; the MAC is the only handle on an unconfigured BMC.
+#   - IPMI-over-LAN must be enabled on the BMC (a BMC factory reset disables it).
 #
 # One-shot: apply configures the hardware BMC; destroy drops state only and does not
-# de-configure the physical IPMI interface (see var.ipmi_configs).
+# de-configure the physical IPMI interface. The provider implements neither Read nor Delete
+# for this resource, so it is never refreshed and never detects drift.
 resource "nutanix_foundation_ipmi_config" "ipmi_config" {
   # Geometry map only (hostnames → IPs). Credentials are a separate sensitive var.
   # nonsensitive(): OpenTofu rejects sensitive for_each maps; callers may pass
   # values derived from SOPS-decrypted JSON even after stripping BMC passwords.
   for_each = nonsensitive(local.ipmi_geometry)
 
-  # Per-node credentials from var.node_ipmi_credentials
-  ipmi_user     = var.node_ipmi_credentials[each.key].ipmi_user
-  ipmi_password = var.node_ipmi_credentials[each.key].ipmi_password
+  # Per-node credentials from var.node_ipmi_credentials.
+  # try(): keep expression evaluation total so a missing entry surfaces as the
+  # named precondition failure below rather than an "Invalid index" error.
+  ipmi_user     = try(var.node_ipmi_credentials[each.key].ipmi_user, null)
+  ipmi_password = try(var.node_ipmi_credentials[each.key].ipmi_password, null)
 
   # Network geometry is public — same values imaging prints in clear text.
   ipmi_netmask = each.value.ipmi_netmask
@@ -165,6 +184,25 @@ resource "nutanix_foundation_ipmi_config" "ipmi_config" {
       ipmi_ip            = each.value.ipmi_ip
       ipmi_mac           = each.value.ipmi_mac
       ipmi_configure_now = each.value.ipmi_configure_now
+    }
+  }
+
+  # Fail at PLAN with an actionable message rather than at apply with Foundation's
+  # opaque "Failed to execute <function configure_node at 0x...>".
+  lifecycle {
+    precondition {
+      condition     = each.value.ipmi_mac != ""
+      error_message = "Node '${each.key}' sets ipmi_configure_now = true but has no ipmi_mac. Foundation reaches an unconfigured BMC over layer 2, so the MAC is mandatory. Set ipmi_mac on the node, or drop ipmi_configure_now if the BMC already holds its IP."
+    }
+
+    precondition {
+      condition     = contains(local.ipmi_credential_hosts, each.key)
+      error_message = "Node '${each.key}' sets ipmi_configure_now = true but has no entry in var.node_ipmi_credentials. Foundation needs BMC credentials to reconfigure the interface; add an entry keyed by this hypervisor_hostname."
+    }
+
+    precondition {
+      condition     = each.value.ipmi_netmask != null && each.value.ipmi_gateway != null
+      error_message = "Node '${each.key}' sets ipmi_configure_now = true but config.ipmi_netmask and/or config.ipmi_gateway is missing. Both are required to give the BMC a usable network identity."
     }
   }
 }

@@ -104,44 +104,73 @@ Foundation VM.
 
 ## IPMI Pre-Imaging Configuration
 
-`nutanix_foundation_ipmi_config` sets a factory-fresh node's out-of-band BMC
-(IPMI) IP, netmask, and gateway via the Foundation VM. This is the **pre-imaging**
-step: it gives each node's BMC a network identity so the node becomes reachable.
+`nutanix_foundation_ipmi_config` sets a **factory-fresh** node's out-of-band BMC
+(IPMI) IP, netmask, and gateway via the Foundation VM. It gives a BMC that has no
+address yet a network identity so the node becomes reachable.
 
 This is **not** the same as `nutanix_foundation_image_nodes` (the `imaging`
-resource): that resource images nodes and forms clusters via the Foundation VM
-**after** IPMI is already reachable. Run `ipmi_config` first for nodes whose BMC
-is not yet on the network; run `image_nodes` to actually image them.
+resource): that images nodes and forms clusters via the Foundation VM **after**
+IPMI is already reachable. The two hit different Foundation endpoints
+(`/foundation/ipmi_config` vs `/foundation/image_nodes`), and only `image_nodes`
+writes a record to Foundation's **Deployment History** — a green Deployment
+History therefore says nothing about whether `ipmi_config` succeeded.
 
-Supply per-node network settings in `var.ipmi_configs` (a map keyed by node
-label) and the shared BMC login in the sensitive `var.ipmi_credentials`. Both are
-sourced from the SOPS-encrypted foundation JSON — IPMI credentials must never
-appear in plaintext YAML or the wizard file. An empty `ipmi_configs` (the
-default) plans zero IPMI resources.
+### Opt-in per node — off by default
 
-```hcl
-module "foundation" {
-  source = "path/to/tf-ntnx-foundation/module"
+A node is included **only** when it carries `ipmi_configure_now = true`:
 
-  config = local.config
-
-  ipmi_configs = {
-    node_1 = {
-      ipmi_ip      = "10.0.100.11"
-      ipmi_netmask = "255.255.255.0"
-      ipmi_gateway = "10.0.100.1"
-    }
-  }
-  ipmi_credentials = {
-    ipmi_user     = "ADMIN"        # from *.sops.json
-    ipmi_password = var.ipmi_password
-  }
+```json
+{
+  "node_position": "A",
+  "hypervisor_hostname": "ntnx-01",
+  "ipmi_ip": "10.0.100.11",
+  "ipmi_mac": "00:11:22:33:44:55",
+  "ipmi_configure_now": true
 }
 ```
 
-**One-shot semantics:** applying configures the physical BMC out-of-band.
-`tofu destroy` removes the resource from state only — it does **not** reset or
-de-configure the hardware IPMI interface.
+Exports from <https://install.nutanix.com> do **not** emit `ipmi_configure_now`,
+so the step is off for every wizard-generated config and the module plans zero
+IPMI resources. That default is deliberate: the overwhelmingly common case is a
+BMC that already holds its IP — which is precisely how Foundation reaches the
+node to image it. Re-configuring an already-configured BMC is at best a no-op and
+at worst fails the apply.
+
+BMC logins come from the sensitive `var.node_ipmi_credentials`, keyed by
+`hypervisor_hostname`, sourced from the SOPS-encrypted foundation JSON — IPMI
+credentials must never appear in plaintext YAML or the wizard file.
+
+### Prerequisites
+
+All three must hold, or `configure_node` fails on the Foundation VM:
+
+| Requirement | Why |
+| ----------- | --- |
+| Foundation VM in the **same broadcast domain** as the IPMI interfaces | An unconfigured BMC has no IP, so Foundation addresses it at layer 2. A routed IPMI VLAN will not work. |
+| `ipmi_mac` known for each opted-in node | The MAC is the only handle on an unconfigured BMC. |
+| IPMI-over-LAN enabled on the BMC | A BMC factory reset disables it. |
+
+The module enforces the second at **plan** time via resource preconditions, along
+with the presence of credentials and of `ipmi_netmask` / `ipmi_gateway`. This is
+worth the noise: Foundation reports failures as an opaque Python function repr —
+`Failed to execute <function configure_node at 0x...>` — with the traceback
+discarded. When it does fail at apply, the real error is on the Foundation VM in
+`/home/nutanix/foundation/log/service.log` and the per-node logs.
+
+### One-shot, create-only semantics
+
+Applying configures the physical BMC out-of-band. The provider implements
+**neither Read nor Delete** for this resource ("there is no read API for IPMI
+config"), which has two consequences:
+
+- `tofu destroy` removes the resource from state only — it does **not** reset or
+  de-configure the hardware IPMI interface, and drift is never detected.
+- A **failed** create never lands in state, so it re-fires on every subsequent
+  apply. A misconfigured opt-in will block the landing zone indefinitely until
+  the node is opted back out.
+
+`imaging` declares an explicit `depends_on` for this resource, so opted-in BMCs
+are configured before imaging starts rather than concurrently with it.
 
 ## Environment Variables
 
@@ -206,7 +235,7 @@ No modules.
 | <a name="input_ahv_iso_local_path"></a> [ahv\_iso\_local\_path](#input\_ahv\_iso\_local\_path) | Local path to AHV ISO. If set, Terraform uploads it and uses the result. | `string` | `""` | no |
 | <a name="input_bond_lacp_rate"></a> [bond\_lacp\_rate](#input\_bond\_lacp\_rate) | LACP rate override ('fast' or 'slow'). Only relevant when bond\_mode is '802.3ad'. Overrides the value from the JSON config export. | `string` | `null` | no |
 | <a name="input_bond_mode"></a> [bond\_mode](#input\_bond\_mode) | Bond mode override (e.g. 'active-backup', 'balance-slb', '802.3ad'). Overrides the value from the JSON config export. Use 'active-backup' for single-NIC or when the switch is not running LACP. | `string` | `null` | no |
-| <a name="input_config"></a> [config](#input\_config) | The .config object from the Foundation preconfiguration JSON export (install.nutanix.com).<br/><br/>Non-secret geometry only: gateways, blocks/nodes (IPs, hostnames, positions), clusters.<br/>Do NOT pass node BMC passwords here — they would appear in clear text in plans.<br/>Supply per-node BMC login via var.node\_ipmi\_credentials (keyed by hypervisor\_hostname).<br/>Shared factory BMC login for nutanix\_foundation\_ipmi\_config is var.ipmi\_credentials.<br/>Hypervisor password after imaging is var.hypervisor\_password. | `any` | n/a | yes |
+| <a name="input_config"></a> [config](#input\_config) | The .config object from the Foundation preconfiguration JSON export (install.nutanix.com).<br/><br/>Non-secret geometry only: gateways, blocks/nodes (IPs, hostnames, positions), clusters.<br/>Do NOT pass node BMC passwords here — they would appear in clear text in plans.<br/>Supply per-node BMC login via var.node\_ipmi\_credentials (keyed by hypervisor\_hostname).<br/>Hypervisor password after imaging is var.hypervisor\_password.<br/><br/>Optional per-node key `ipmi_configure_now = true` opts that node in to the<br/>pre-imaging nutanix\_foundation\_ipmi\_config step (default: false — see<br/>"IPMI Pre-Imaging Configuration" in the module README). Wizard exports from<br/>install.nutanix.com do not emit this key, so the step is off unless added. | `any` | n/a | yes |
 | <a name="input_esx_iso_checksum"></a> [esx\_iso\_checksum](#input\_esx\_iso\_checksum) | MD5 checksum of the ESXi ISO. Optional. | `string` | `null` | no |
 | <a name="input_esx_iso_filename"></a> [esx\_iso\_filename](#input\_esx\_iso\_filename) | ESXi ISO filename on the Foundation VM. | `string` | `""` | no |
 | <a name="input_esx_iso_local_path"></a> [esx\_iso\_local\_path](#input\_esx\_iso\_local\_path) | Local path to ESXi ISO. If set, Terraform uploads it and uses the result. | `string` | `""` | no |
