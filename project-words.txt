@@ -88,3 +88,5 @@ tfvars
 trivycache
 utilize
 prek
+unconfigured
+repr
