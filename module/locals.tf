@@ -79,6 +79,21 @@ locals {
 
   ##################################################
   # IPMI Geometry (built from config)
+  #
+  # Drives nutanix_foundation_ipmi_config — the PRE-imaging step that gives a
+  # factory-fresh BMC its network identity. It is OPT-IN per node: a node is
+  # included only when it sets `ipmi_configure_now = true`.
+  #
+  # The default is false because the overwhelmingly common case is a BMC that
+  # already holds its IP (set by DHCP, the rack installer, or the hardware
+  # vendor's own tooling) — which is precisely how Foundation reaches the node
+  # to image it. Configuring an already-configured BMC is at best a no-op and
+  # at worst fails the whole apply, and because the provider's ipmi_config
+  # resource is create-only (no Read, no Delete) a failed create never lands in
+  # state and re-fires on every subsequent apply.
+  #
+  # Exports from install.nutanix.com do not emit ipmi_configure_now, so this
+  # defaults to "off" for every wizard-generated config.
   ##################################################
   ipmi_geometry = merge([
     for b in try(var.config.blocks, []) : {
@@ -87,12 +102,20 @@ locals {
         # ipmi_mac is a REQUIRED argument on nutanix_foundation_ipmi_config's nodes
         # block, so it must be present (non-null). Default to "" when a node omits it;
         # null would fail provider schema validation ("Missing required argument").
+        # An empty MAC is rejected by a precondition on the resource — Foundation
+        # addresses an unconfigured BMC at layer 2, so it cannot act without one.
         ipmi_mac           = try(n.ipmi_mac, "")
-        ipmi_configure_now = try(n.ipmi_configure_now, true)
+        ipmi_configure_now = true
         ipmi_netmask       = try(var.config.ipmi_netmask, null)
         ipmi_gateway       = try(var.config.ipmi_gateway, null)
         block_id           = try(b.block_id, null)
-      } if try(n.ipmi_ip, null) != null
+      } if try(n.ipmi_ip, null) != null && try(n.ipmi_configure_now, false) == true
     }
   ]...)
+
+  # Hostnames that have BMC credentials, as a plain (non-sensitive) set.
+  # The keys are hypervisor hostnames — already public in var.config — so only
+  # the map's *values* are secret. Preconditions reject sensitive conditions,
+  # hence the unwrap.
+  ipmi_credential_hosts = nonsensitive(toset(keys(var.node_ipmi_credentials)))
 }

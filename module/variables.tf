@@ -5,8 +5,12 @@ variable "config" {
     Non-secret geometry only: gateways, blocks/nodes (IPs, hostnames, positions), clusters.
     Do NOT pass node BMC passwords here — they would appear in clear text in plans.
     Supply per-node BMC login via var.node_ipmi_credentials (keyed by hypervisor_hostname).
-    Shared factory BMC login for nutanix_foundation_ipmi_config is var.ipmi_credentials.
     Hypervisor password after imaging is var.hypervisor_password.
+
+    Optional per-node key `ipmi_configure_now = true` opts that node in to the
+    pre-imaging nutanix_foundation_ipmi_config step (default: false — see
+    "IPMI Pre-Imaging Configuration" in the module README). Wizard exports from
+    install.nutanix.com do not emit this key, so the step is off unless added.
   EOT
   type        = any
 
@@ -177,5 +181,10 @@ variable "timeout_minutes" {
 ##################################################
 # IPMI pre-imaging configuration
 # (nutanix_foundation_ipmi_config — provider 2.4.2)
+#
+# Intentionally no module-level variable. The step is driven entirely by the
+# per-node `ipmi_configure_now` key inside var.config (default false) plus BMC
+# logins in var.node_ipmi_credentials, keeping one source of truth rather than a
+# module switch that could disagree with the config.
 ##################################################
 
