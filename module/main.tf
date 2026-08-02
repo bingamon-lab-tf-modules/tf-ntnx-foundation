@@ -136,6 +136,37 @@ resource "nutanix_foundation_image_nodes" "imaging" {
       run_ncc      = var.run_ncc
     }
   }
+
+  # ONE-SHOT. This resource records a completed imaging event, and once the
+  # cluster exists no configuration change should ever propose replacing it —
+  # because "replace" here means WIPING AND RE-IMAGING RUNNING HARDWARE.
+  #
+  # Without this, ordinary estate maintenance proposes exactly that. Observed
+  # in a live estate on 2026-08-02: `cvm_dns_servers` is ForceNew, the caller
+  # injects it from an estate-wide network default, and editing that default
+  # produced
+  #
+  #     nutanix_foundation_image_nodes.imaging must be replaced
+  #     Plan: 1 to add, 0 to change, 1 to destroy.
+  #
+  # on the four nodes running the estate's Prism Central. Nothing about
+  # Foundation had changed; a DNS server had.
+  #
+  # Ignoring drift is CORRECT rather than merely convenient, because the
+  # provider has no meaningful update: every attribute is ForceNew, so the only
+  # "change" available is a rebuild. Steady-state NTP/DNS belongs to the Day-2
+  # owner (the calling landing zone's Day-2 NTP hook) from the moment a cluster
+  # exists; this resource's copy is a historical record of what was used at
+  # imaging time, and disagreeing with it is expected, not a defect.
+  #
+  # Re-imaging deliberately is still available, and now has to be deliberate:
+  #
+  #     tofu apply -replace='module.<x>.nutanix_foundation_image_nodes.imaging'
+  #
+  # See the caller's ADR on one-cluster-per-run isolation.
+  lifecycle {
+    ignore_changes = all
+  }
 }
 
 # Pre-imaging IPMI/BMC network configuration for factory-fresh nodes.
