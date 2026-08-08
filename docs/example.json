@@ -67,10 +67,7 @@
             }
         ],
         "eos_metadata": {
-            "account_name": [
-                "Acme Corp",
-                "Acme Corp"
-            ],
+            "account_name": ["Acme Corp"],
             "config_id": "69a0e04777930e069d8cf636",
             "email": "YourEmail@acme.corp"
         }
