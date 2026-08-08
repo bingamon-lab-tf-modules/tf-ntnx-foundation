@@ -67,12 +67,9 @@
             }
         ],
         "eos_metadata": {
-            "account_name": [
-                "Royal Australian Navy",
-                "Department of Defence - Cyber Defence Systems"
-            ],
+            "account_name": ["Acme Corp"],
             "config_id": "69a0e04777930e069d8cf636",
-            "email": "matthew.duncan5@defence.gov.au"
+            "email": "YourEmail@acme.corp"
         }
     }
 }
