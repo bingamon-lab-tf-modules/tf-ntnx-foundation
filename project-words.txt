@@ -90,3 +90,6 @@ utilize
 prek
 unconfigured
 repr
+SecretSpec
+mktemp
+bingamon

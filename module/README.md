@@ -201,14 +201,14 @@ Foundation connectivity:
 ## Requirements
 
 | Name | Version |
-|------|---------|
+| ---- | ------- |
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.10.0 |
 | <a name="requirement_nutanix"></a> [nutanix](#requirement\_nutanix) | >= 2.4.2 |
 
 ## Providers
 
 | Name | Version |
-|------|---------|
+| ---- | ------- |
 | <a name="provider_nutanix"></a> [nutanix](#provider\_nutanix) | 2.4.2 |
 
 ## Modules
@@ -218,7 +218,7 @@ No modules.
 ## Resources
 
 | Name | Type |
-|------|------|
+| ---- | ---- |
 | [nutanix_foundation_image.ahv](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/foundation_image) | resource |
 | [nutanix_foundation_image.esx](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/foundation_image) | resource |
 | [nutanix_foundation_image.hyperv](https://registry.terraform.io/providers/nutanix/nutanix/latest/docs/resources/foundation_image) | resource |
@@ -229,7 +229,7 @@ No modules.
 ## Inputs
 
 | Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
+| ---- | ----------- | ---- | ------- | :------: |
 | <a name="input_ahv_iso_checksum"></a> [ahv\_iso\_checksum](#input\_ahv\_iso\_checksum) | MD5 checksum of the AHV ISO. Optional. | `string` | `null` | no |
 | <a name="input_ahv_iso_filename"></a> [ahv\_iso\_filename](#input\_ahv\_iso\_filename) | AHV (kvm) ISO filename on the Foundation VM. | `string` | `""` | no |
 | <a name="input_ahv_iso_local_path"></a> [ahv\_iso\_local\_path](#input\_ahv\_iso\_local\_path) | Local path to AHV ISO. If set, Terraform uploads it and uses the result. | `string` | `""` | no |
@@ -257,7 +257,7 @@ No modules.
 ## Outputs
 
 | Name | Description |
-|------|-------------|
+| ---- | ----------- |
 | <a name="output_cluster_urls"></a> [cluster\_urls](#output\_cluster\_urls) | URLs of created clusters |
 | <a name="output_foundation_status"></a> [foundation\_status](#output\_foundation\_status) | Status summary of the foundation imaging operation |
 | <a name="output_ipmi_config_ids"></a> [ipmi\_config\_ids](#output\_ipmi\_config\_ids) | Map of node label => nutanix\_foundation\_ipmi\_config resource id. |
