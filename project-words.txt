@@ -93,3 +93,5 @@ repr
 SecretSpec
 mktemp
 bingamon
+esac
+secops
