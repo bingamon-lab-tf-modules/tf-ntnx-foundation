@@ -209,7 +209,7 @@ Foundation connectivity:
 
 | Name | Version |
 | ---- | ------- |
-| <a name="provider_nutanix"></a> [nutanix](#provider\_nutanix) | 2.4.2 |
+| <a name="provider_nutanix"></a> [nutanix](#provider\_nutanix) | 2.5.0 |
 
 ## Modules
 
