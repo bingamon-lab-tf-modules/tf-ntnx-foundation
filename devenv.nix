@@ -16,6 +16,7 @@ let
     figlet
     gh
     git
+    github-cli
     gnutar
     hello
     jq

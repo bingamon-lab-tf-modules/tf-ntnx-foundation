@@ -90,3 +90,8 @@ utilize
 prek
 unconfigured
 repr
+SecretSpec
+mktemp
+bingamon
+esac
+secops
