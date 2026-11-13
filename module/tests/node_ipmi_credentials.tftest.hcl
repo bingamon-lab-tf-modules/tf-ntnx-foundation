@@ -72,3 +72,28 @@ run "plans_without_node_ipmi_credentials" {
     error_message = "Imaging must still plan when node_ipmi_credentials is empty (password null)"
   }
 }
+
+run "plans_with_write_only_passwords_and_iso_uploads" {
+  command = plan
+
+  variables {
+    hypervisor_password    = "super-secret-hypervisor-password"
+    nos_package_local_path = "/tmp/nutanix_installer_package.tar.gz"
+    ahv_iso_local_path     = "/tmp/nutanix_ahv_installer.iso"
+  }
+
+  assert {
+    condition     = length(nutanix_foundation_image.nos) == 1 && length(nutanix_foundation_image.ahv) == 1
+    error_message = "Expected NOS and AHV nutanix_foundation_image upload resources to plan"
+  }
+
+  assert {
+    condition     = nonsensitive(one(one(nutanix_foundation_image_nodes.imaging.blocks).nodes).ipmi_user) == "Administrator"
+    error_message = "Expected ipmi_user from node_ipmi_credentials to wire onto the node block"
+  }
+
+  assert {
+    condition     = nutanix_foundation_image_nodes.imaging.hypervisor_password == null && one(one(nutanix_foundation_image_nodes.imaging.blocks).nodes).ipmi_password == null
+    error_message = "Expected write_only hypervisor_password and ipmi_password attributes to remain null in planned state on v2.5.1"
+  }
+}
